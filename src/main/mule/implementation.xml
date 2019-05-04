@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="637a62f1-4015-4141-8270-8bfcd16e3255" >
+		<db:my-sql-connection host="${db.host}" port="${db.port}" user="${db.user}" password="${db.password}" database="${db.database}" />
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="a5d457dc-2ebb-4fea-b7bd-4ff203e1b68c" file="app-${env}.properties" />
+	<flow name="getCustomersFlow" doc:id="2e4e6595-f5dc-4d62-b8f9-1d3e1eddd0f7" >
+		<db:select doc:name="Select" doc:id="8632592e-1d8e-4fd5-a12e-715361cfe87c" config-ref="Database_Config" transactionalAction="NOT_SUPPORTED">
+			<db:sql >Select * From t_customers where city = :rcity</db:sql>
+			<db:input-parameters ><![CDATA[#[{"rcity": attributes.queryParams.city}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="af7e417a-85d2-4c54-944f-47f2eb092f60" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	customerId: payload01.id default "",
+	email: payload01.email default "",
+	fullName: payload01.name default "",
+	phoneNumber: payload01.phoneNumber default "",
+	addressLine1: payload01.addressLine1 default "",
+	addressLine2: payload01.addressLine2 default "",
+	city: payload01.city default "",
+	state: payload01.state default "",
+	pincode: payload01.postalCode as Number default 0
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="getCustomerByIdFlow" doc:id="9b211c9b-2235-422a-81af-101b3d996288" >
+		<db:select doc:name="Select" doc:id="2ae581da-b2e6-46f6-86ac-211a1cd96888" config-ref="Database_Config">
+			<db:sql >Select * From t_customers Where id= :rid</db:sql>
+			<db:input-parameters ><![CDATA[#[{"rid": attributes.uriParams.customer_id}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="7a6ef0fe-1a5d-4e24-8888-e9fb201fdd1a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+(payload map ( payload01 , indexOfPayload01 ) -> {
+	customerId: payload01.id default "",
+	email: payload01.email default "",
+	fullName: payload01.name default "",
+	phoneNumber: payload01.phoneNumber default "",
+	addressLine1: payload01.addressLine1 default "",
+	addressLine2: payload01.addressLine2 default "",
+	city: payload01.city default "",
+	state: payload01.state default "",
+	pincode: payload01.postalCode as Number default 0
+})[0]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="deleteCustomerByIdFlow" doc:id="9ce4d6bd-d4f6-4a67-8dc8-3860d6c50e56" >
+		<db:delete doc:name="Delete" doc:id="6b1d1118-7beb-4425-8c81-f4c4de869bef" config-ref="Database_Config">
+			<db:sql >Delete From t_customers Where id = :rid	</db:sql>
+			<db:input-parameters ><![CDATA[#[{"rid": attributes.uriParams.customer_id}]]]></db:input-parameters>
+		</db:delete>
+		<choice doc:name="Choice" doc:id="27e9af76-d78d-4849-9a01-e22350fb96ba" >
+			<when expression="#[payload == 1]">
+				<set-payload value='{"message": "Customer has been deleted"}' doc:name="Set Payload" doc:id="21827000-f648-4c27-b671-534133d3409f" mimeType="application/json"/>
+				<set-variable value="200" doc:name="Set Variable" doc:id="5a178b7c-e627-4fb3-bf08-834dc2762a6f" variableName="statusCode"/>
+			</when>
+			<otherwise >
+				<set-payload value='{"message": "Customer Not Found"}' doc:name="Set Payload" doc:id="6e0376d9-57cb-4f90-9715-997ce742c2c0" />
+				<set-variable value="404" doc:name="Set Variable" doc:id="eb8a4c3b-92f6-4f4f-8552-0a9f98267c70" variableName="statusCode"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="postCustomerFlow" doc:id="23ac502a-484e-47d0-bc1d-c2b53d54b19e" >
+		<ee:transform doc:name="Transform Message" doc:id="f8d43210-03f1-4c0f-8978-b391d65ceddd" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:insert doc:name="Insert" doc:id="84909a25-966d-4b97-bd9b-5f038aae72f4" config-ref="Database_Config">
+			<db:sql >Insert Into t_customers(id,email,name,phoneNumber,addressLine1,addressLine2,city,state,postalCode)
+Value(:id, :email, :name, :phoneNumber, :addresslline1, :addresslline2, :city, :state, :postalCode)</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id: payload.customerId,
+	email: payload.email,
+	name: payload.fullName,
+	phoneNumber: payload.phoneNumber,
+	addresslline1:payload.addressLine1,
+	addresslline2: payload.addressLine2,
+	city: payload.city,
+	state: payload.state,
+	postalCode: payload.postalCode
+}]]]></db:input-parameters>
+		</db:insert>
+		<set-payload value='#[output application/json
+---
+
+if(payload.affectedRows == 1)
+	message:"Customer has been inserted"
+else
+	message:"Customer not been inserted"]' doc:name="Set Payload" doc:id="d42fe5d7-1382-4cd3-8156-2171f4021ec7" />
+	</flow>
+	<flow name="putCustomerFlow" doc:id="504d1c66-d531-47e1-ab95-ab5318f0b376" >
+		<ee:transform doc:name="Transform Message" doc:id="2ef0ff11-a8c9-479c-bf7f-55decd8c6823" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<db:update doc:name="Update" doc:id="84227f32-619e-4a06-84e2-1993f483a62e" config-ref="Database_Config">
+			<db:sql >Update t_customers
+Set 
+email = :email,
+name = :name,
+phoneNumber = :phoneNumber,
+addressLine1 = :addresslline1,
+addressLine2 = :addresslline2,
+city = :city,
+state = :state,
+postalCode = :postalCode
+Where id = :id</db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	id: payload.customerId,
+	email: payload.email,
+	name: payload.fullName,
+	phoneNumber: payload.phoneNumber,
+	addresslline1:payload.addressLine1,
+	addresslline2: payload.addressLine2,
+	city: payload.city,
+	state: payload.state,
+	postalCode: payload.postalCode
+}]]]></db:input-parameters>
+		</db:update>
+		<set-payload value='#[output application/json
+---
+
+if(payload.affectedRows == 1)
+	message:"Customer has been updated"
+else
+	message:"Customer not been updated"]' doc:name="Set Payload" doc:id="59379787-1349-439d-a850-cc2a3e884cdc" />
+	</flow>
+</mule>
